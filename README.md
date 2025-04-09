@@ -57,8 +57,8 @@ cd radio-labi-labi
 
 Or on Windows:
 
-javac -cp ".;lib/*" *.java
-java -cp ".;lib/*" MediaPlayerApp
+- javac -cp ".;lib/*" *.java
+- java -cp ".;lib/*" MediaPlayerApp
 
 
 ## 💡 Usage
