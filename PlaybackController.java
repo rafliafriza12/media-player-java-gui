@@ -1,4 +1,3 @@
-// PlaybackController.java
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,12 +7,60 @@ public class PlaybackController {
     private MediaFile currentFile;
     private List<PlaybackListener> listeners;
     private boolean isPlaying;
+    private boolean autoPlay;
     
     public PlaybackController() {
         mediaPlayer = new MediaPlayer();
         currentPlaylist = new Playlist();
         listeners = new ArrayList<>();
         isPlaying = false;
+        autoPlay = true;
+        
+        // Listen to media player events
+        mediaPlayer.addListener(new MediaPlayerEventListener() {
+            @Override
+            public void onFileLoaded(MediaFile file) {
+                currentFile = file;
+            }
+            
+            @Override
+            public void onPlaybackStarted() {
+                isPlaying = true;
+                notifyPlay();
+            }
+            
+            @Override
+            public void onPlaybackPaused() {
+                isPlaying = false;
+                notifyPause();
+            }
+            
+            @Override
+            public void onPlaybackStopped() {
+                isPlaying = false;
+                notifyStop();
+            }
+            
+            @Override
+            public void onPlaybackCompleted() {
+                isPlaying = false;
+                notifyComplete();
+                if (autoPlay) {
+                    next();
+                }
+            }
+            
+            @Override
+            public void onVolumeChanged(float volume) {}
+            
+            @Override
+            public void onPositionChanged(int position, int duration) {
+                notifyProgress(position, duration);
+            }
+            
+            @Override
+            public void onError(String error) {}
+        });
     }
     
     public void play() {
@@ -24,8 +71,6 @@ public class PlaybackController {
         if (currentFile != null) {
             mediaPlayer.loadMedia(currentFile);
             mediaPlayer.play();
-            isPlaying = true;
-            notifyPlay();
         }
     }
     
@@ -33,27 +78,25 @@ public class PlaybackController {
         currentFile = file;
         mediaPlayer.loadMedia(file);
         mediaPlayer.play();
-        isPlaying = true;
-        notifyPlay();
     }
     
     public void pause() {
         mediaPlayer.pause();
-        isPlaying = false;
-        notifyPause();
     }
     
     public void stop() {
         mediaPlayer.stop();
-        isPlaying = false;
-        notifyStop();
     }
     
     public void next() {
         MediaFile nextFile = currentPlaylist.getNextFile();
         if (nextFile != null) {
             currentFile = nextFile;
-            loadAndPlay(currentFile);
+            if (autoPlay && isPlaying) {
+                loadAndPlay(currentFile);
+            } else {
+                mediaPlayer.loadMedia(currentFile);
+            }
         }
     }
     
@@ -61,12 +104,20 @@ public class PlaybackController {
         MediaFile prevFile = currentPlaylist.getPreviousFile();
         if (prevFile != null) {
             currentFile = prevFile;
-            loadAndPlay(currentFile);
+            if (autoPlay && isPlaying) {
+                loadAndPlay(currentFile);
+            } else {
+                mediaPlayer.loadMedia(currentFile);
+            }
         }
     }
     
     public void setVolume(float volume) {
         mediaPlayer.setVolume(volume);
+    }
+    
+    public float getVolume() {
+        return mediaPlayer.getVolume();
     }
     
     public int getCurrentPosition() {
@@ -81,8 +132,12 @@ public class PlaybackController {
         listeners.add(listener);
     }
     
+    public void removePlaybackListener(PlaybackListener listener) {
+        listeners.remove(listener);
+    }
+    
     public boolean isPlaying() {
-        return isPlaying;
+        return mediaPlayer.isPlaying();
     }
     
     public MediaFile getCurrentFile() {
@@ -91,6 +146,18 @@ public class PlaybackController {
 
     public Playlist getPlaylist() {
         return currentPlaylist;
+    }
+    
+    public MediaPlayer getMediaPlayer() {
+        return mediaPlayer;
+    }
+    
+    public void setAutoPlay(boolean autoPlay) {
+        this.autoPlay = autoPlay;
+    }
+    
+    public boolean isAutoPlay() {
+        return autoPlay;
     }
     
     private void notifyPlay() {
