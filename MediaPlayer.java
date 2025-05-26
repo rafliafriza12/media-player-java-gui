@@ -1,6 +1,9 @@
+// Enhanced MediaPlayer.java
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import javazoom.jl.player.Player;
+import java.util.ArrayList;
+import java.util.List;
 
 public class MediaPlayer {
     private MediaFile currentFile;
@@ -10,15 +13,49 @@ public class MediaPlayer {
     private boolean initialized = false;
     private boolean isPaused = false;
     private long pausePosition = 0;
+    private List<MediaPlayerEventListener> listeners;
+    private AudioProcessor audioProcessor;
     
     public MediaPlayer() {
-        // No audio processor needed with JLayer
+        listeners = new ArrayList<>();
+        audioProcessor = new AudioProcessor();
+    }
+    
+    public void addListener(MediaPlayerEventListener listener) {
+        listeners.add(listener);
+    }
+    
+    public void removeListener(MediaPlayerEventListener listener) {
+        listeners.remove(listener);
+    }
+    
+    private void notifyListeners(String event) {
+        for (MediaPlayerEventListener listener : listeners) {
+            switch (event) {
+                case "fileLoaded":
+                    listener.onFileLoaded(currentFile);
+                    break;
+                case "playbackStarted":
+                    listener.onPlaybackStarted();
+                    break;
+                case "playbackPaused":
+                    listener.onPlaybackPaused();
+                    break;
+                case "playbackStopped":
+                    listener.onPlaybackStopped();
+                    break;
+                case "playbackCompleted":
+                    listener.onPlaybackCompleted();
+                    break;
+            }
+        }
     }
     
     public void loadMedia(MediaFile file) {
         stop();
         this.currentFile = file;
         initialized = true;
+        notifyListeners("fileLoaded");
     }
     
     public void play() {
@@ -26,8 +63,6 @@ public class MediaPlayer {
         
         if (isPaused) {
             isPaused = false;
-            // Implementasi resume akan lebih kompleks dengan JLayer
-            // Untuk sederhananya, kita mulai dari awal saja
         }
         
         try {
@@ -38,25 +73,30 @@ public class MediaPlayer {
                     FileInputStream fis = new FileInputStream(currentFile.getFilePath());
                     BufferedInputStream bis = new BufferedInputStream(fis);
                     player = new Player(bis);
+                    notifyListeners("playbackStarted");
                     player.play();
+                    notifyListeners("playbackCompleted");
                 } catch (Exception e) {
-                    System.err.println("Error playing media: " + e.getMessage());
+                    for (MediaPlayerEventListener listener : listeners) {
+                        listener.onError("Error playing media: " + e.getMessage());
+                    }
                 }
             });
             
             playerThread.start();
         } catch (Exception e) {
-            System.err.println("Error starting playback: " + e.getMessage());
+            for (MediaPlayerEventListener listener : listeners) {
+                listener.onError("Error starting playback: " + e.getMessage());
+            }
         }
     }
     
     public void pause() {
         isPaused = true;
         if (player != null) {
-            // JLayer tidak mendukung pause secara native
-            // Implementasi sederhana: stop player
             try {
                 player.close();
+                notifyListeners("playbackPaused");
             } catch (Exception e) {
                 // Ignore
             }
@@ -83,24 +123,33 @@ public class MediaPlayer {
         }
         
         isPaused = false;
+        notifyListeners("playbackStopped");
     }
     
     public void setVolume(float volume) {
-        // JLayer tidak mendukung pengaturan volume secara langsung
-        this.volume = volume;
+        this.volume = Math.max(0.0f, Math.min(1.0f, volume));
+        for (MediaPlayerEventListener listener : listeners) {
+            listener.onVolumeChanged(this.volume);
+        }
+    }
+    
+    public float getVolume() {
+        return volume;
     }
     
     public int getCurrentPosition() {
-        // JLayer tidak menyediakan informasi posisi current playback
-        return 0;
+        return 0; // JLayer limitation
     }
     
     public int getDuration() {
-        // JLayer tidak menyediakan informasi durasi
         return currentFile != null ? currentFile.getDuration() : 0;
     }
     
     public boolean isPlaying() {
         return player != null && playerThread != null && playerThread.isAlive() && !isPaused;
+    }
+    
+    public AudioProcessor getAudioProcessor() {
+        return audioProcessor;
     }
 }
