@@ -1,5 +1,10 @@
 import java.io.Serializable;
 import java.io.File;
+
+/**
+ * Media File entity representing audio files with metadata
+ * Based on Business Type Model for media management
+ */
 public class MediaFile implements Serializable {
     private static final long serialVersionUID = 1L;
     
@@ -7,23 +12,35 @@ public class MediaFile implements Serializable {
     private String title;
     private String artist;
     private String album;
+    private String genre;
     private int duration;
+    private long fileSize;
+    private String format;
+    private int year;
+    private boolean isCorrupted;
     
     public MediaFile(String filePath) {
         this.filePath = filePath;
+        this.isCorrupted = false;
         extractMetadata();
+        calculateFileSize();
     }
     
+    /**
+     * Extract metadata from filename - simplified implementation
+     * In real system, would use JAudioTagger library
+     */
     private void extractMetadata() {
-        // In a real implementation, we would use a library like JAudioTagger
-        // to extract metadata from the file. Here we'll just use the filename.
         File file = new File(filePath);
         String fileName = file.getName();
         
-        // Remove extension
+        // Extract format
         int dotIndex = fileName.lastIndexOf('.');
         if (dotIndex > 0) {
+            format = fileName.substring(dotIndex + 1).toLowerCase();
             fileName = fileName.substring(0, dotIndex);
+        } else {
+            format = "unknown";
         }
         
         // Try to parse artist - title format
@@ -37,59 +54,80 @@ public class MediaFile implements Serializable {
         }
         
         album = "Unknown Album";
-        duration = 0; // Would be set after file is loaded
+        genre = "Unknown Genre";
+        year = 0;
+        duration = 0; // Would be set after file analysis
     }
     
-    public String getFilePath() {
-        return filePath;
+    private void calculateFileSize() {
+        File file = new File(filePath);
+        if (file.exists()) {
+            fileSize = file.length();
+        } else {
+            fileSize = 0;
+            isCorrupted = true;
+        }
     }
     
-    public String getTitle() {
-        return title;
-    }
+    // Getters and Setters
+    public String getFilePath() { return filePath; }
     
-    public void setTitle(String title) {
-        this.title = title;
-    }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
     
-    public String getArtist() {
-        return artist;
-    }
+    public String getArtist() { return artist; }
+    public void setArtist(String artist) { this.artist = artist; }
     
-    public void setArtist(String artist) {
-        this.artist = artist;
-    }
+    public String getAlbum() { return album; }
+    public void setAlbum(String album) { this.album = album; }
     
-    public String getAlbum() {
-        return album;
-    }
+    public String getGenre() { return genre; }
+    public void setGenre(String genre) { this.genre = genre; }
     
-    public void setAlbum(String album) {
-        this.album = album;
-    }
+    public int getDuration() { return duration; }
+    public void setDuration(int duration) { this.duration = duration; }
     
-    public int getDuration() {
-        return duration;
-    }
+    public long getFileSize() { return fileSize; }
     
-    public void setDuration(int duration) {
-        this.duration = duration;
-    }
+    public String getFormat() { return format; }
+    
+    public int getYear() { return year; }
+    public void setYear(int year) { this.year = year; }
+    
+    public boolean isCorrupted() { return isCorrupted; }
+    public void setCorrupted(boolean corrupted) { isCorrupted = corrupted; }
     
     public String getMetadata() {
-        return artist + " - " + title + " (" + album + ")";
+        return String.format("%s - %s (%s) [%s]", artist, title, album, format.toUpperCase());
     }
     
-    public String getFileType() {
-        int dotIndex = filePath.lastIndexOf('.');
-        if (dotIndex > 0 && dotIndex < filePath.length() - 1) {
-            return filePath.substring(dotIndex + 1).toLowerCase();
-        }
-        return "";
+    public String getFormattedFileSize() {
+        if (fileSize < 1024) return fileSize + " B";
+        if (fileSize < 1024 * 1024) return String.format("%.1f KB", fileSize / 1024.0);
+        return String.format("%.1f MB", fileSize / (1024.0 * 1024.0));
+    }
+    
+    public String getFormattedDuration() {
+        int minutes = duration / 60;
+        int seconds = duration % 60;
+        return String.format("%02d:%02d", minutes, seconds);
     }
     
     @Override
     public String toString() {
-        return artist + " - " + title;
+        return String.format("%s - %s [%s]", artist, title, getFormattedDuration());
+    }
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        MediaFile mediaFile = (MediaFile) obj;
+        return filePath.equals(mediaFile.filePath);
+    }
+    
+    @Override
+    public int hashCode() {
+        return filePath.hashCode();
     }
 }
